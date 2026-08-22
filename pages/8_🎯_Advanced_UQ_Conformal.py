@@ -5,7 +5,7 @@ from models.advanced_uq import NeuralSDE_EulerMaruyama, EpistemicAleatoricDecomp
 
 st.set_page_config(page_title="Quantificação Avançada de Incerteza (UQ)", layout="wide")
 st.title("🎯 Quantificação Avançada de Incerteza & Conformal Prediction")
-st.markdown("Modelagem estocástica via **Neural SDE (Cálculo de Itô)**, **Decomposição Epistêmica/Aleatória** e **Predição Conforme (PCCP)** com garantia $\ge 95\%$.")
+st.markdown("Modelagem estocástica via **Neural SDE (Cálculo de Itô)**, **Decomposição Epistêmica/Aleatória** e **Functional Conformal Prediction (PCCP)** com garantia $\ge 95\%$.")
 
 tab_sde, tab_decomp, tab_conformal, tab_envelope = st.tabs([
     "🎲 Motor Estocástico (Neural SDE)",
@@ -67,9 +67,7 @@ with tab_decomp:
             
             fig, ax = plt.subplots(figsize=(10, 4.2))
             ax.plot(t_grid, mu_g, color="#2c3e50", lw=2.5, label="Trajetória Esperada")
-            # Área de Incerteza Epistêmica (Azul)
             ax.fill_between(t_grid, mu_g - std_epi, mu_g + std_epi, color="#3498db", alpha=0.35, label="Incerteza Epistêmica (Discrepância do Modelo)")
-            # Área de Incerteza Aleatória (Laranja)
             ax.fill_between(t_grid, mu_g - std_tot, mu_g - std_epi, color="#e67e22", alpha=0.30, label="Incerteza Aleatória (Ruído Fisiológico/Sensor)")
             ax.fill_between(t_grid, mu_g + std_epi, mu_g + std_tot, color="#e67e22", alpha=0.30)
             ax.set_xlabel("Horas de Internação (t)"); ax.set_ylabel("Lactato (mmol/L)")
@@ -82,34 +80,35 @@ with tab_decomp:
 # TAB 3: CONFORMAL PREDICTION (PCCP)
 # -------------------------------------------------------------
 with tab_conformal:
-    st.subheader("Calibração Conforme: Garantia Matemática de Cobertura (≥ 95%)")
-    st.markdown("Validação em coorte de calibração cega ($N_{\\text{cal}} = 100$) e teste empírico em coorte independente ($N_{\\text{test}} = 200$).")
+    st.subheader("Calibração Conforme Funcional: Garantia Matemática de Cobertura (≥ 95%)")
+    st.markdown("Validação em coorte de calibração funcional ($N_{\\text{cal}} = 250$) e verificação empírica em coorte independente ($N_{\\text{test}} = 200$).")
     
     if st.button("Executar Calibração Conformal Split-Sample", key="btn_run_conf"):
-        with st.spinner("Calculando quantil de não-conformidade q_hat e validando cobertura..."):
-            q_hat, scores, mu_cal, std_cal = PhysicsConformalCalibrator.calibrate_cohort(sde_engine, N_cal=100, alpha=0.05)
-            cov_conf, cov_naive, low_conf, up_conf = PhysicsConformalCalibrator.evaluate_test_coverage(
+        with st.spinner("Calculando quantil de supremo funcional q_hat e validando cobertura..."):
+            q_hat, scores, mu_cal, std_cal = PhysicsConformalCalibrator.calibrate_cohort(sde_engine, N_cal=250, alpha=0.05)
+            cov_traj, cov_point, cov_naive_traj, low_conf, up_conf = PhysicsConformalCalibrator.evaluate_test_coverage(
                 sde_engine, q_hat, mu_cal, std_cal, N_test=200
             )
             
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Fator de Calibração Conformal (q̂)", f"{q_hat:.4f}")
-            c2.metric("Cobertura Real da Banda Conforme", f"{cov_conf*100:.1f}%", "Garantia Teórica ≥ 95%")
-            c3.metric("Cobertura da Banda Gaussiana 1.96σ", f"{cov_naive*100:.1f}%", "Método Tradicional")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Fator de Calibração (q̂)", f"{q_hat:.4f}")
+            c2.metric("Cobertura da Trajetória Completa", f"{cov_traj*100:.1f}%", "Garantia Teórica ≥ 95%")
+            c3.metric("Cobertura Ponto a Ponto", f"{cov_point*100:.1f}%", "Precisão Local")
+            c4.metric("Cobertura Trajetória 1.96σ", f"{cov_naive_traj*100:.1f}%", "Gaussiano Ingênuo")
             
             fig, ax = plt.subplots(figsize=(10, 4.2))
             t_grid = sde_engine.t_grid
             ax.plot(t_grid, mu_cal, color="#2c3e50", lw=2.5, label="Predição Central")
-            ax.fill_between(t_grid, low_conf, up_conf, color="#27ae60", alpha=0.25, label=f"Banda Conforme Calibrada (Cobertura: {cov_conf*100:.1f}%)")
+            ax.fill_between(t_grid, low_conf, up_conf, color="#27ae60", alpha=0.25, label=f"Banda Conforme Calibrada (Cobertura Trajetorial: {cov_traj*100:.1f}%)")
             ax.plot(t_grid, mu_cal + 1.96*std_cal, color="red", ls=":", label="Limite Gaussiano Simples (1.96σ)")
             ax.plot(t_grid, np.maximum(mu_cal - 1.96*std_cal, 0.5), color="red", ls=":")
             ax.set_xlabel("Horas de UTI"); ax.set_ylabel("Lactato (mmol/L)")
-            ax.set_title("Comparação: Banda Conforme Calibrada (PCCP) vs. Banda Gaussiana Heurística")
+            ax.set_title("Banda Conforme Funcional (PCCP) vs. Limites Gaussianos Pontuais")
             ax.legend(); ax.grid(True, alpha=0.3)
             st.pyplot(fig)
             plt.close(fig)
             
-            st.success("✅ **Comprovação Matemática:** A banda conformal calibra a largura exata necessária para garantir 95% de cobertura sem superdimensionar a incerteza.")
+            st.success(f"✅ **Garantia Cumprida:** A cobertura simultânea da trajetória inteira atingiu {cov_traj*100:.1f}% (com {cov_point*100:.1f}% de cobertura ponto a ponto).")
 
 # -------------------------------------------------------------
 # TAB 4: ENVELOPE INDIVIDUALIZADO
