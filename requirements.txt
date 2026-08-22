@@ -1,7 +1,10 @@
-torch
-numpy
-matplotlib
-streamlit
-reportlab
-pysindy
-scipy
+torch>=2.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+scipy>=1.10.0
+reportlab>=4.0.0
+streamlit>=1.30.0
+fastapi>=0.100.0
+uvicorn>=0.22.0
+pydantic>=2.0.0
+requests>=2.31.0
