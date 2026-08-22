@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  pinn-enterprise:
+    build: .
+    container_name: pinn_med_enterprise
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./database:/app/database
+      - ./reports:/app/reports
+    restart: always

@@ -1,0 +1,7 @@
+torch
+numpy
+matplotlib
+streamlit
+reportlab
+pysindy
+scipy
