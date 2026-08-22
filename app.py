@@ -5,7 +5,7 @@ from database.auth_manager import AuthManager
 from database.audit_db import AuditDatabase
 
 st.set_page_config(
-    page_title="SGP-PINN ENTERPRISE V20.0 | Portal Corporativo",
+    page_title="SGP-PINN ENTERPRISE V25.0 | Portal Corporativo",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -37,8 +37,8 @@ def logout():
     st.rerun()
 
 if not st.session_state["authenticated"]:
-    st.markdown("<h1 style='text-align: center;'>🧬 SGP-PINN ENTERPRISE V20.0</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #7f8c8d;'>Plataforma Fisiológica de Grau Médico (SaMD) • Controle de Acesso Restrito</p>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🧬 SGP-PINN ENTERPRISE V25.0</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #7f8c8d;'>Plataforma Fisiológica de Grau Médico (SaMD) • Suporte à Decisão Clínica</p>", unsafe_allow_html=True)
     
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
     with col_l2:
@@ -86,27 +86,29 @@ with st.sidebar:
     if st.button("🚪 Encerrar Sessão (Logout)", use_container_width=True):
         logout()
 
-st.title("🧬 SGP-PINN ENTERPRISE V20.0 | Plataforma Fisiológica")
-st.markdown("Sistema de Monitoramento Preditivo de Choque Séptico, Descoberta Simbólica e Quantificação Avançada de Incerteza.")
+st.title("🧬 SGP-PINN ENTERPRISE V25.0 | Plataforma Fisiológica")
+st.markdown("Sistema de Monitoramento Preditivo de Choque Séptico, Operadores DeepONet, Validação MIMIC-IV e Conformidade Regulatória SaMD.")
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Status do Sistema", "ONLINE (Produção)", "Sessão Segura")
-col2.metric("Motor Numérico", "PyTorch Autograd / RK4", "100% Calibrado")
+col1.metric("Status do Sistema", "ONLINE (Grau Médico)", "TRL 5 -> TRL 7")
+col2.metric("Motor Numérico", "DeepONet / PyTorch Autograd", "< 2 ms / leito")
 col3.metric("Rastreabilidade", "Ativa (SHA-256)", "21 CFR Part 11")
-col4.metric("Conformidade", "HL7 / FHIR R4", "LGPD & HIPAA")
+col4.metric("Conformidade", "ANVISA RDC 657 / FHIR R4", "ISO 14971 / LGPD")
 
 st.markdown("---")
-st.subheader("Módulos Clínicos, de Pesquisa e Testes Cegos Disponíveis")
+st.subheader("Módulos Clínicos, Científicos e Regulatórios Disponíveis")
 
 col_a, col_b = st.columns(2)
 with col_a:
     st.info("🔬 **1. U-PINN Residual:** Inferência adaptativa com separação de termos conhecidos e neurais (RAD).")
     st.info("📜 **3. Descoberta Simbólica:** Extração de equações via SR3 com restrições biológicas.")
-    st.info("📊 **5. Benchmarking SOTA:** Avaliação de complexidade, speedup e supressão de ruído.")
+    st.info("📊 **5. Benchmarking SOTA:** Avaliação de complexidade algorítmica, speedup e ruído.")
     st.info("🎯 **7. Quantificação de Incerteza:** Neural SDE (Itô) e Functional Conformal Prediction (≥ 95%).")
+    st.info("🔬 **11. MIMIC-IV Benchmark Sepsis:** Validação em dados reais de UTI com AUROC e antecedência.")
 
 with col_b:
     st.success("👤 **2. PINN Inversa:** Calibração bayesiana amortizada de constantes individuais e laudo PDF.")
     st.success("🌐 **4. Neural Jump-ODE:** Rastreamento de dinâmicas descontínuas com infusão de bolus.")
     st.success("🏥 **6. Gateway FHIR R4:** Ingestão de prontuários (EHR), titulação What-If e Sobol GSA.")
     st.success("⚙️ **10. Gestão de Acessos & Senhas:** Cadastro de operadores, troca de senha e perfis RBAC.")
+    st.success("📋 **12. Conformidade ANVISA & Editais:** Dossiê Técnico SaMD, Matriz FMEA (ISO 14971) e Proposta FINEP.")
