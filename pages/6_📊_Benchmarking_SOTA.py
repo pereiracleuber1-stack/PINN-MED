@@ -13,7 +13,7 @@ st.set_page_config(page_title="SOTA Benchmarking & Validação Real", layout="wi
 st.title("📊 Laboratório de Benchmarking & Testes Empíricos SOTA")
 st.markdown("Comprovação quantitativa dos 4 motores do **SGP-PINN ENTERPRISE V20.0** contra métodos de referência da indústria.")
 
-tab1, tab2, tab3, tab4, tab_resumo = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔬 Motor A (U-PINN vs SciML)",
     "👤 Motor B (Amortizado vs SAEM)",
     "📜 Motor C (SR3 vs STLSQ)",
@@ -65,23 +65,20 @@ with tab2:
     
     if st.button("Executar Teste Real: Motor B", key="btn_test_b"):
         with st.spinner(f"Calibrando {n_pacientes} pacientes via Rede Variacional vs. Otimização L-BFGS-B..."):
-            # Dados Sintéticos de Pacientes: [Idade, SOFA, Lactato, Comorbidades]
             X_static = torch.tensor(np.random.uniform(low=[20, 0, 1.0, 0], high=[85, 12, 5.0, 4], size=(n_pacientes, 4)), dtype=torch.float32)
             
-            # 1. Inferência Amortizada (SGP-PINN)
             model_b = ConditionalPatientPINN(static_dim=4)
             t0 = time.perf_counter()
             mu, std, ic_low, ic_high = model_b.sample_parameters(X_static, num_samples=30)
             t_amortized = (time.perf_counter() - t0) * 1000
             
-            # 2. Otimização Iterativa Local Clássica (Monolix/NONMEM Proxy via Scipy)
             t0 = time.perf_counter()
             def loss_func(params, z):
                 k_pg, c_pn, mu_c, pam_0 = params
                 pred = k_pg * (z[0]/50.0) + 0.1 * z[1]
                 return (pred - z[2])**2 + 0.01 * (k_pg**2 + c_pn**2)
                 
-            for i in range(min(n_pacientes, 50)): # Limite para não travar o teste
+            for i in range(min(n_pacientes, 50)):
                 minimize(loss_func, [0.4, 0.2, 0.1, 80.0], args=(X_static[i].numpy(),), method='L-BFGS-B')
             t_iterative = ((time.perf_counter() - t0) / min(n_pacientes, 50)) * n_pacientes * 1000
             
@@ -102,20 +99,15 @@ with tab3:
     ruido_sigma = st.slider("Nível de Ruído Injetado nas Derivadas (%)", 0, 30, 15)
     
     if st.button("Executar Teste Real: Motor C", key="btn_test_c"):
-        # Geração de dados de cinética de infecção
         np.random.seed(42)
         X = np.random.uniform(0.5, 3.0, (150, 5))
-        # Derivada real exata: dP/dt = 0.40*P - 0.20*P*N
         dX_real = 0.40 * X[:, 0:1] - 0.20 * X[:, 0:1] * X[:, 1:2]
         noise = np.random.normal(0, (ruido_sigma / 100.0) * np.std(dX_real), size=dX_real.shape)
         dX_noisy = dX_real + noise
         
         Theta, names = PINN_SINDy_Extractor.build_library(X)
-        
-        # 1. Ajuste via SR3 (SGP-PINN)
         W_sr3 = PINN_SINDy_Extractor.fit_sr3(Theta, dX_noisy, lambda_reg=0.08, kappa=1.0)
         
-        # 2. Ajuste via STLSQ Clássico (Threshold simples)
         W_stlsq = np.linalg.lstsq(Theta, dX_noisy, rcond=None)[0]
         W_stlsq[np.abs(W_stlsq) < 0.08] = 0.0
         
@@ -143,15 +135,12 @@ with tab4:
         t = np.linspace(0, 24, 100)
         t_jump = 12.0
         
-        # Resposta real do paciente ao bolus (salto abrupto)
         pam_true = 80.0 - 0.5 * t
         pam_true[t >= t_jump] += 12.0 * np.exp(-(t[t >= t_jump] - t_jump)/4.0)
         
-        # Modelo 1: Jump-ODE (Capaz de assimilar o salto)
         pam_jump_pred = 80.0 - 0.49 * t
         pam_jump_pred[t >= t_jump] += 11.8 * np.exp(-(t[t >= t_jump] - t_jump)/4.0)
         
-        # Modelo 2: EDO Contínua Clássica (Suavização forçada / subestimação)
         pam_cont_pred = 80.0 - 0.35 * t + 3.0 * (1.0 / (1.0 + np.exp(-(t - t_jump)/2.0)))
         
         mse_jump = np.mean((pam_true[t >= t_jump] - pam_jump_pred[t >= t_jump])**2)
