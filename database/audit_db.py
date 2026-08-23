@@ -13,9 +13,15 @@ class AuditDatabase:
         self.db_path = db_path
         self._init_db()
 
+    def _get_connection(self):
+        # Conexão thread-safe com timeout de 30s e modo WAL para alta concorrência
+        conn = sqlite3.connect(self.db_path, timeout=30.0, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        return conn
+
     def _init_db(self):
         try:
-            conn = sqlite3.connect(self.db_path, timeout=15.0)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -34,7 +40,7 @@ class AuditDatabase:
             """)
             conn.commit()
             
-            # Migração automática se a tabela foi gerada em versão anterior sem a coluna
+            # Migração automática e idempotente de colunas
             cursor.execute("PRAGMA table_info(audit_logs)")
             cols = [c[1] for c in cursor.fetchall()]
             if "raw_signature" not in cols:
@@ -52,7 +58,7 @@ class AuditDatabase:
         sha256_hash = hashlib.sha256(str(raw_signature).encode('utf-8')).hexdigest()
 
         try:
-            conn = sqlite3.connect(self.db_path, timeout=15.0)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO audit_logs (timestamp, operator_crm, patient_id, model_type, k_pg, c_pn, mu_c, peak_lactate, raw_signature, sha256_hash)
@@ -77,7 +83,7 @@ class AuditDatabase:
 
     def get_all_logs(self, limit=500, *args, **kwargs):
         try:
-            conn = sqlite3.connect(self.db_path, timeout=15.0)
+            conn = self._get_connection()
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT id, timestamp, operator_crm, patient_id, model_type, k_pg, c_pn, mu_c, peak_lactate, sha256_hash 

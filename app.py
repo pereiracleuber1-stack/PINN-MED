@@ -61,20 +61,24 @@ if not st.session_state["authenticated"]:
                     st.session_state["user_role"] = res["role"]
                     st.session_state["session_token"] = token
                     
-                    audit_db.log_inference(
-                        operator_crm=res["crm"],
-                        patient_id="AUTH-LOGIN",
-                        model_type="SECURITY-RBAC",
-                        k_pg=0.0, c_pn=0.0, mu_c=0.0, peak_lactate=0.0,
-                        raw_signature=f"User {res['username']} authenticated as {res['role']}"
-                    )
+                    try:
+                        audit_db.log_inference(
+                            operator_crm=res["crm"],
+                            patient_id="AUTH-LOGIN",
+                            model_type="SECURITY-RBAC",
+                            k_pg=0.0, c_pn=0.0, mu_c=0.0, peak_lactate=0.0,
+                            raw_signature=f"User {res['username']} authenticated as {res['role']}"
+                        )
+                    except Exception:
+                        pass
+                        
                     st.success("✅ Acesso autenticado com sucesso!")
                     st.rerun()
                 else:
                     msg = res if isinstance(res, str) else "Usuário ou senha incorretos."
                     st.error(f"❌ {msg}")
                     
-        st.info("💡 **Acesso Inicial:** Usuário: `admin` | Senha: `pinn2026` (alterável no menu de gestão).")
+        st.info("💡 **Acesso Inicial:** Usuário: `admin` | Senha: `pinn2026` (alterável na aba de gestão de acesso).")
     st.stop()
 
 with st.sidebar:
