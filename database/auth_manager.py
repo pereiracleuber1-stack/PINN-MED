@@ -6,7 +6,7 @@ import json
 
 class AuthManager:
     """
-    Gerenciador de Usuários, Senhas, Perfis RBAC e Licenciamento Modular de Motores.
+    Gerenciador de Usuários, Senhas, Perfis RBAC e Licenciamento Modular.
     """
     def __init__(self, db_path="audit_ledger.db"):
         self.db_path = db_path
@@ -36,16 +36,6 @@ class AuthManager:
             )
         """)
         conn.commit()
-
-        # Migração automática para suporte a módulos permitidos
-        cursor.execute("PRAGMA table_info(users)")
-        cols = [c[1] for c in cursor.fetchall()]
-        if "allowed_modules" not in cols:
-            cursor.execute("ALTER TABLE users ADD COLUMN allowed_modules TEXT NOT NULL DEFAULT 'ALL'")
-            conn.commit()
-        if "registration_id" not in cols and "crm_registration" in cols:
-            cursor.execute("ALTER TABLE users RENAME COLUMN crm_registration TO registration_id")
-            conn.commit()
         conn.close()
 
     def _hash_password(self, password: str, salt: bytes = None):
@@ -67,7 +57,7 @@ class AuthManager:
             """, (
                 "admin", pwd_hash, salt_hex,
                 "Prof. Me. Cleuber Pereira Ramos",
-                "PROFMAT / Pesquisador em Matemática Computacional",
+                "PROFMAT / Pesquisador em Matemática Aplicada",
                 "Pesquisador Chefe & Administrador",
                 json.dumps(["ALL"]),
                 "ACTIVE", ts
@@ -92,7 +82,7 @@ class AuthManager:
             """, (username, pwd_hash, salt_hex, full_name, reg_id, role, modules_json, "ACTIVE", ts))
             conn.commit()
             conn.close()
-            return True, "Operador registrado com sucesso!"
+            return True, "Operador cadastrado com sucesso!"
         except sqlite3.IntegrityError:
             return False, f"O usuário '{username}' já existe."
 
@@ -109,7 +99,7 @@ class AuthManager:
         
         stored_hash, salt_hex, full_name, reg_id, role, mod_json, status = row
         if status != "ACTIVE":
-            return False, "Conta inativa."
+            return False, "Conta desativada."
 
         salt = bytes.fromhex(salt_hex)
         calc_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000).hex()
@@ -138,7 +128,7 @@ class AuthManager:
         cursor.execute("UPDATE users SET password_hash = ?, salt = ? WHERE username = ?", (pwd_hash, salt_hex, username.lower()))
         conn.commit()
         conn.close()
-        return True, "Senha atualizada com sucesso!"
+        return True, "Senha alterada com sucesso!"
 
     def list_all_users(self):
         conn = self._get_connection()
