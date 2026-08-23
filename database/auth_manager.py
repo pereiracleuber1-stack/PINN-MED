@@ -7,6 +7,7 @@ import json
 class AuthManager:
     """
     Gerenciador de Usuários, Senhas, Perfis RBAC e Licenciamento Modular.
+    Possui migração automática de schema para total retrocompatibilidade.
     """
     def __init__(self, db_path="audit_ledger.db"):
         self.db_path = db_path
@@ -21,6 +22,8 @@ class AuthManager:
     def _init_db(self):
         conn = self._get_connection()
         cursor = conn.cursor()
+        
+        # Cria a tabela caso não exista
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,12 +33,39 @@ class AuthManager:
                 full_name TEXT NOT NULL,
                 registration_id TEXT NOT NULL,
                 role TEXT NOT NULL,
-                allowed_modules TEXT NOT NULL DEFAULT 'ALL',
+                allowed_modules TEXT NOT NULL DEFAULT '["ALL"]',
                 status TEXT NOT NULL DEFAULT 'ACTIVE',
                 created_at TEXT NOT NULL
             )
         """)
         conn.commit()
+
+        # Migração dinâmica e segura de colunas
+        cursor.execute("PRAGMA table_info(users)")
+        cols = [c[1] for c in cursor.fetchall()]
+
+        if "allowed_modules" not in cols:
+            try:
+                cursor.execute("ALTER TABLE users ADD COLUMN allowed_modules TEXT NOT NULL DEFAULT '[\"ALL\"]'")
+                conn.commit()
+            except Exception:
+                pass
+
+        if "registration_id" not in cols:
+            if "crm_registration" in cols:
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN registration_id TEXT DEFAULT 'PROFMAT'")
+                    cursor.execute("UPDATE users SET registration_id = crm_registration WHERE registration_id IS NULL")
+                    conn.commit()
+                except Exception:
+                    pass
+            else:
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN registration_id TEXT DEFAULT 'PROFMAT'")
+                    conn.commit()
+                except Exception:
+                    pass
+
         conn.close()
 
     def _hash_password(self, password: str, salt: bytes = None):
@@ -63,6 +93,15 @@ class AuthManager:
                 "ACTIVE", ts
             ))
             conn.commit()
+        else:
+            # Garante que o admin tenha a titulação correta atualizada
+            cursor.execute("""
+                UPDATE users 
+                SET full_name = 'Prof. Me. Cleuber Pereira Ramos',
+                    registration_id = 'PROFMAT / Pesquisador em Matemática Aplicada'
+                WHERE username = 'admin'
+            """)
+            conn.commit()
         conn.close()
 
     def register_user(self, username, password, full_name, reg_id, role, allowed_modules=None):
@@ -82,7 +121,7 @@ class AuthManager:
             """, (username, pwd_hash, salt_hex, full_name, reg_id, role, modules_json, "ACTIVE", ts))
             conn.commit()
             conn.close()
-            return True, "Operador cadastrado com sucesso!"
+            return True, "Operador registrado com sucesso!"
         except sqlite3.IntegrityError:
             return False, f"O usuário '{username}' já existe."
 
@@ -90,7 +129,16 @@ class AuthManager:
         username = username.strip().lower()
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT password_hash, salt, full_name, registration_id, role, allowed_modules, status FROM users WHERE username = ?", (username,))
+        
+        # Leitura compatível verificando as colunas existentes
+        cursor.execute("PRAGMA table_info(users)")
+        cols = [c[1] for c in cursor.fetchall()]
+        
+        reg_col = "registration_id" if "registration_id" in cols else "crm_registration"
+        mod_col = "allowed_modules" if "allowed_modules" in cols else "'[\"ALL\"]'"
+        
+        query = f"SELECT password_hash, salt, full_name, {reg_col}, role, {mod_col}, status FROM users WHERE username = ?"
+        cursor.execute(query, (username,))
         row = cursor.fetchone()
         conn.close()
 
@@ -99,7 +147,7 @@ class AuthManager:
         
         stored_hash, salt_hex, full_name, reg_id, role, mod_json, status = row
         if status != "ACTIVE":
-            return False, "Conta desativada."
+            return False, "Conta inativa."
 
         salt = bytes.fromhex(salt_hex)
         calc_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000).hex()
@@ -133,7 +181,12 @@ class AuthManager:
     def list_all_users(self):
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT id, username, full_name, registration_id, role, allowed_modules, status, created_at FROM users ORDER BY id ASC")
+        cursor.execute("PRAGMA table_info(users)")
+        cols = [c[1] for c in cursor.fetchall()]
+        reg_col = "registration_id" if "registration_id" in cols else "crm_registration"
+        mod_col = "allowed_modules" if "allowed_modules" in cols else "'[\"ALL\"]'"
+        
+        cursor.execute(f"SELECT id, username, full_name, {reg_col}, role, {mod_col}, status, created_at FROM users ORDER BY id ASC")
         rows = cursor.fetchall()
         conn.close()
         return rows
