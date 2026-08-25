@@ -31,10 +31,14 @@ with c2:
             df_m = pd.DataFrame(metrics).T
             st.dataframe(df_m, use_container_width=True)
             
-            # Sincronização exata das métricas para os gráficos
-            lead_pinn = df_m.loc["SGP-PINN Enterprise (Física Informada)", "Antecedência Média (h)"]
-            lead_logit = df_m.loc["Regressão Logística Multivariada", "Antecedência Média (h)"]
-            lead_sofa = df_m.loc["SOFA Score Isolado (Padrão Clínico UTI)", "Antecedência Média (h)"]
+            # Chaves exatas do dicionário retornado pelo motor Scikit-Learn
+            k_pinn = "SGP-PINN Enterprise (Física Informada)"
+            k_logit = "Regressão Logística Multivariada (Scikit-Learn CV-5)"
+            k_sofa = "SOFA Score Isolado (Padrão Clínico UTI >= 6)"
+
+            lead_pinn = df_m.loc[k_pinn, "Antecedência Média (h)"]
+            lead_logit = df_m.loc[k_logit, "Antecedência Média (h)"]
+            lead_sofa = df_m.loc[k_sofa, "Antecedência Média (h)"]
 
             col_g1, col_g2 = st.columns(2)
             with col_g1:
@@ -44,9 +48,9 @@ with c2:
                 tpr_logit = 1.0 / (1.0 + np.exp(-3.2 * (fpr - 0.28)))
                 tpr_sofa = fpr**0.62
 
-                ax.plot(fpr, tpr_pinn, color='#27ae60', lw=2.5, label=f"SGP-PINN (AUROC = {df_m.loc['SGP-PINN Enterprise (Física Informada)', 'AUROC']})")
-                ax.plot(fpr, tpr_logit, color='#2980b9', lw=2.0, linestyle='-.', label=f"Logístico (AUROC = {df_m.loc['Regressão Logística Multivariada', 'AUROC']})")
-                ax.plot(fpr, tpr_sofa, color='#c0392b', lw=1.8, linestyle='--', label=f"SOFA (AUROC = {df_m.loc['SOFA Score Isolado (Padrão Clínico UTI)', 'AUROC']})")
+                ax.plot(fpr, tpr_pinn, color='#27ae60', lw=2.5, label=f"SGP-PINN (AUROC = {df_m.loc[k_pinn, 'AUROC']})")
+                ax.plot(fpr, tpr_logit, color='#2980b9', lw=2.0, linestyle='-.', label=f"Logístico (AUROC = {df_m.loc[k_logit, 'AUROC']})")
+                ax.plot(fpr, tpr_sofa, color='#c0392b', lw=1.8, linestyle='--', label=f"SOFA (AUROC = {df_m.loc[k_sofa, 'AUROC']})")
                 ax.plot([0, 1], [0, 1], color='#7f8c8d', linestyle=':')
                 ax.set_title("Curvas ROC: Predição de Deterioração Clínica")
                 ax.set_xlabel("1 - Especificidade (Taxa FP)")
